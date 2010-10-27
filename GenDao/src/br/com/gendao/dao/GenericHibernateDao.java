@@ -4,15 +4,15 @@
  */
 package br.com.gendao.dao;
 
+import br.com.gendao.exception.DataAccessLayerException;
 import java.util.List;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -20,99 +20,137 @@ import org.springframework.transaction.annotation.Transactional;
  * @author Barbafh
  */
 @Transactional
-@Repository("genDao")
 public class GenericHibernateDao implements GenericDao {
 
-    @Autowired
     public SessionFactory sessionFactory;
+    private Transaction tx;
+
+    public void saveOrUpdate(Object obj) {
+        try {
+            startOperation();
+            getSession().saveOrUpdate(obj);
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+    }
+
+    public void delete(Object obj) {
+        try {
+            startOperation();
+            getSession().delete(obj);
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+    }
+
+    public List listAll(Class classe, String ordem) {
+        List lista = null;
+        try {
+            startOperation();
+            Criteria criteria = getSession().createCriteria(classe);
+            criteria.addOrder(Order.asc(ordem));
+            lista = criteria.list();
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+        return lista;
+    }
+
+    public Object findOne(Class classe, String field, int value) {
+        Object obj = null;
+        try {
+            startOperation();
+            Criteria criteria = getSession().createCriteria(classe);
+            criteria.add(Restrictions.eq(field, value));
+            obj = (Object) criteria.uniqueResult();
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+        return obj;
+    }
+
+    public Object findOne(Class classe, String field, String value) {
+        Object obj = null;
+        try {
+            startOperation();
+            Criteria criteria = getSession().createCriteria(classe);
+            criteria.add(Restrictions.eq(field, value));
+            obj = (Object) criteria.uniqueResult();
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+        return obj;
+    }
+
+    public Object findOne(Class classe, String field, float value) {
+        Object obj = null;
+        try {
+            startOperation();
+            Criteria criteria = getSession().createCriteria(classe);
+            criteria.add(Restrictions.eq(field, value));
+            obj = (Object) criteria.uniqueResult();
+            tx.commit();
+        } catch (HibernateException e) {
+            handleTransactionException(e);
+        } finally {
+            getSession().close();
+        }
+        return obj;
+    }
 
     public Session getSession() {
         Session session = null;
         try {
             session = getSessionFactory().openSession();
         } catch (HibernateException e) {
-            e.printStackTrace();
+            handleStandardException(e);
         }
         return session;
     }
 
-    public void save(Object ob) {
-        Session session = this.getSession();
-        session.save(ob);
-        session.flush();
-        session.close();
+    protected void handleTransactionException(HibernateException e) throws DataAccessLayerException {
+        rollback(tx);
+        throw new DataAccessLayerException(e);
     }
 
-    public void update(Object ob) {
-        Session session = this.getSession();
-        session.update(ob);
-        session.flush();
-        session.close();
+    protected void handleStandardException(HibernateException e) throws DataAccessLayerException {
+        throw new DataAccessLayerException(e);
     }
 
-    public void delete(Object ob) {
-        Session session = this.getSession();
-        session.delete(ob);
-        session.flush();
-        session.close();
+    protected void startOperation() throws HibernateException {
+        tx = getSession().beginTransaction();
     }
 
-    public List listAll(Class classe, String order) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.addOrder(Order.asc(order));
-        List list = criteria.list();
-        return list;
-    }
-
-    public List listAll(Class classe, String order, String field, String value) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.addOrder(Order.asc(order));
-        criteria.add(Restrictions.eq(field, value));
-        return criteria.list();
-    }
-
-    public List listAll(Class classe, String order, String field, int value) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.addOrder(Order.asc(order));
-        criteria.add(Restrictions.eq(field, value));
-        return criteria.list();
-    }
-
-    public Object findOne(Class classe, String field, int value) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.add(Restrictions.eq(field, value));
-        Object ob = criteria.uniqueResult();
-        session.close();
-        return ob;
-    }
-
-    public Object findOne(Class classe, String field, String value) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.add(Restrictions.eq(field, value));
-        Object ob = criteria.uniqueResult();
-        session.close();
-        return ob;
+    protected void rollback(Transaction tx) {
+        try {
+            if (tx != null) {
+                tx.rollback();
+            }
+        } catch (HibernateException ex) {
+            handleStandardException(ex);
+        }
     }
 
     public SessionFactory getSessionFactory() {
         return sessionFactory;
     }
 
-    public void setSessionFactory(SessionFactory sessionFactory) {
+    private void setSessionFactory(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
-    }
-
-    public Object findOne(Class classe, String field, float value) {
-        Session session = this.getSession();
-        Criteria criteria = session.createCriteria(classe);
-        criteria.add(Restrictions.eq(field, value));
-        Object ob = criteria.uniqueResult();
-        session.close();
-        return ob;
     }
 }
